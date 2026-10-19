@@ -1,0 +1,45 @@
+{
+  "title": "pydivide: drainage divide networks in Python beyond the 32-bit limit",
+  "description": "Python reimplementation and extension of the DIVIDEobj class of MATLAB TopoToolbox 3 (Scherler and Schwanghart, 2020): drainage divide networks from digital elevation models with 64-bit indexing, single-pass geometry and ordering in place of the reference's quadratic stages, a deterministic rule at diagonal flow crossings, every analytical DIVIDEobj method reproduced (getvalue, asymmetry, cleanedges, removeshortdivides, shrink, dist2node, jctangle, jctcon; the MATLAB plotting methods are replaced by GeoDataFrame and matplotlib output), a signed across-divide contrast whose two sides are identified by basin, and direct export to GeoPackage, Shapefile and File Geodatabase. First module of ATLAS Topo. Validated against the reference implementation on nine DEMs with the reference's flow routing injected: reach-basin labels identical, every reference edge reproduced (the surplus being edges the reference drops or misses through documented defects), and, on the reference's edge set and sorted network, identical junctions, endpoints, segments, distances and orders.",
+  "creators": [
+    {
+      "name": "Peifer, Daniel",
+      "affiliation": "Universidade Federal de Minas Gerais, Belo Horizonte, Brazil",
+      "orcid": "0000-0001-9238-5072"
+    }
+  ],
+  "license": "gpl-3.0-or-later",
+  "upload_type": "software",
+  "access_right": "open",
+  "keywords": [
+    "drainage divides",
+    "divide network",
+    "geomorphology",
+    "digital elevation model",
+    "TopoToolbox",
+    "river capture",
+    "chi analysis",
+    "topographic analysis"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/ATLAS-Topo/pydivide",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.5194/esurf-8-245-2020",
+      "relation": "isDerivedFrom",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.14748886",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ],
+  "language": "eng"
+}

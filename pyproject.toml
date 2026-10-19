@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydivide"
+version = "0.1.0"
+description = "Drainage divide networks in Python. A reimplementation and extension of TopoToolbox 3 DIVIDEobj, without its 32-bit index ceiling."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Daniel Peifer", email = "peiferdaniel@gmail.com" }]
+maintainers = [{ name = "Daniel Peifer", email = "peiferdaniel@gmail.com" }]
+keywords = [
+    "geomorphology", "drainage divide", "digital elevation model",
+    "topographic analysis", "TopoToolbox", "DIVIDEobj",
+    "divide mobility", "river capture", "wind gap",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+# Floors, not pins: the oldest releases the test suite passes with, in an
+# environment installed at exactly these versions (the "floor" job of the
+# CI workflow repeats that installation). pytopotoolbox brings NumPy 2,
+# and the File Geodatabase writer needs the GDAL that pyogrio 0.10 ships
+# to keep 64-bit fields. The exact versions behind the published
+# measurements are recorded with the paper's data deposit, because "it
+# installs" and "it reproduces the paper" are different claims.
+dependencies = [
+    "numpy>=2.0",
+    "rasterio>=1.3.11",
+    "geopandas>=1.0",
+    "pyogrio>=0.10",
+    "shapely>=2.0.4",
+    "pyproj>=3.6.1",
+    "topotoolbox>=0.0.12",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.9"]
+scripts = ["psutil>=5.9"]
+test = ["pytest>=7.0", "matplotlib>=3.9"]
+dev = ["pytest>=7.0", "psutil>=5.9", "ruff>=0.5", "matplotlib>=3.9"]
+
+[project.urls]
+Homepage = "https://github.com/ATLAS-Topo/pydivide"
+Repository = "https://github.com/ATLAS-Topo/pydivide"
+Issues = "https://github.com/ATLAS-Topo/pydivide/issues"
+
+[tool.setuptools]
+packages = ["pydivide"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::RuntimeWarning:pyogrio.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E741",   # ambiguous name 'I' -- I is the row index throughout,
+              # matching the MATLAB source this reimplements
+]

@@ -1,0 +1,63 @@
+# Deny by default, then allow only what is published.
+#
+# Deliberately inverted. This repository is built from a working directory
+# holding several terabytes of DEMs, checkpoints and run outputs, and a
+# blacklist that forgets one pattern publishes gigabytes by accident. With
+# an allow-list a mistake omits a file instead, which is noticed and fixed
+# rather than pushed and permanent.
+
+/*
+!/.gitattributes
+!/.gitignore
+!/.github/
+!/.zenodo.json
+!/CHANGELOG.md
+!/CITATION.cff
+!/LICENSE
+!/MANIFEST.in
+!/README.md
+!/THIRD_PARTY.md
+!/pyproject.toml
+!/docs/
+!/examples/
+!/matlab_scripts/
+!/pydivide/
+!/scripts/
+!/tests/
+
+# Never, anywhere.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Data and outputs, restated explicitly. Redundant against the allow-list
+# above, and kept for exactly that reason: if the allow-list is ever
+# relaxed, these still hold.
+*.tif
+*.tiff
+*.vrt
+*.ovr
+*.asc
+*.gpkg
+*.gdb/
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.npy
+*.npz
+*.zarr/
+*.parquet
+*.bin
+*.pt
+*.log
+*.mat

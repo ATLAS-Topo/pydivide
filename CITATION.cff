@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+title: "pydivide: drainage divide networks in Python"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Peifer
+    given-names: Daniel
+    orcid: "https://orcid.org/0000-0001-9238-5072"
+    email: peiferdaniel@gmail.com
+    affiliation: "Universidade Federal de Minas Gerais"
+repository-code: "https://github.com/ATLAS-Topo/pydivide"
+abstract: >-
+  pydivide reimplements and extends the drainage-divide network
+  algorithm of TopoToolbox 3 DIVIDEobj in Python. It removes the
+  32-bit index ceiling that caps MATLAB FLOWobj at 4.29e9 cells,
+  replaces the quadratic geometry and ordering stages with single-pass
+  ones, and applies a deterministic local rule at diagonal flow
+  crossings in place of an order-dependent merge cascade. It is
+  the first module of ATLAS Topo.
+license: GPL-3.0-or-later
+version: 0.1.0
+keywords:
+  - geomorphology
+  - drainage divide
+  - digital elevation model
+  - topographic analysis
+  - TopoToolbox
+
+references:
+  - type: article
+    authors:
+      - family-names: Scherler
+        given-names: Dirk
+      - family-names: Schwanghart
+        given-names: Wolfgang
+    title: >-
+      Drainage divide networks - Part 1: Identification and ordering in
+      digital elevation models
+    journal: "Earth Surface Dynamics"
+    volume: 8
+    start: 245
+    end: 259
+    year: 2020
+    doi: "10.5194/esurf-8-245-2020"
+    notes: >-
+      The method pydivide reimplements. Cite this for the algorithm itself.

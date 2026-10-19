@@ -1,0 +1,7 @@
+include README.md LICENSE THIRD_PARTY.md CHANGELOG.md CITATION.cff .zenodo.json
+recursive-include docs *.md
+recursive-include examples *.py
+recursive-include matlab_scripts *.m
+recursive-include scripts *.py
+recursive-include tests *.py
+global-exclude __pycache__ *.py[cod]
