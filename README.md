@@ -31,7 +31,7 @@ in `docs/validation.md`.
 
 `pydivide` is the first module of ATLAS Topo, the topographic-analysis
 software of the ATLAS lab (Advanced Terrestrial Landscape
-Analysis and Simulation). It stands alone and depends only on the
+Analysis and Simulations). It stands alone and depends only on the
 packages listed below.
 
 ## Requirements
