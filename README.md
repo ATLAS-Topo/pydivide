@@ -30,7 +30,7 @@ instances receive a different divide distance, measured and classified
 in `docs/validation.md`.
 
 `pydivide` is the first module of ATLAS Topo, the topographic-analysis
-software of the ATLAS research group (Advanced Terrestrial Landscape
+software of the ATLAS lab (Advanced Terrestrial Landscape
 Analysis and Simulation). It stands alone and depends only on the
 packages listed below.
 
