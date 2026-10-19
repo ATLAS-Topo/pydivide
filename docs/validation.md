@@ -61,15 +61,19 @@ plateaus (six used whole, one as a 6000 × 6000 window).
 ## Why the reference routing is injected
 
 pytopotoolbox and MATLAB TopoToolbox both route flow with D8 and carving,
-but not with the same code: at the reference commit MATLAB fills sinks,
-finds flats and computes the carving costs with the libtopotoolbox C
-library that pytopotoolbox uses for every step, and then computes the
-auxiliary distance and chooses the receivers in its own MATLAB code.
-On Big Tujunga they disagree on 0.64 % of flow edges, mostly inside
-flats of the filled surface and at ties in the steepest descent, with
-neither systematically steeper. The divide stages consume only the flow
-edges, the stream edges and the grid, so the validation feeds them the
-MATLAB routing. Production runs use pytopotoolbox routing.
+but not with the same code. pytopotoolbox runs every step in the
+libtopotoolbox C library. The MATLAB reference exports were made with a
+TopoToolbox copy whose libtopotoolbox bindings were not compiled, so
+MATLAB filled sinks, found flats, computed the carving costs and the
+auxiliary distance, and chose the receivers in its own MATLAB code. On
+Big Tujunga the same MATLAB call with the bindings gives identical flow
+edges. On that DEM the two toolboxes disagree on 0.64 % of flow edges,
+mostly at cells that a screening places inside flats of the filled
+surface or next to tied steepest neighbours; the rest are not
+classified, so a difference of implementation cannot be excluded. The
+divide stages consume only the flow edges, the stream edges and the
+grid, so the validation feeds them the MATLAB routing. Production runs
+use pytopotoolbox routing.
 
 ## Which MATLAB
 

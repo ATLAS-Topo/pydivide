@@ -66,9 +66,13 @@ def flow_accumulation_inplace(fd, w: np.ndarray) -> np.ndarray:
 
     ``ezgetnal`` ends in ``k.astype(dtype)``, which copies even when the
     dtype already matches, and ``np.array(..., copy=True)`` copies that
-    again. Two extra full-grid arrays -- 97.4 GB on the Brazil domain --
-    ahead of a kernel that works in place, which is more than a 512 GB
-    machine holds together with the routing.
+    again, so two new full-grid float32 arrays exist together ahead of a
+    kernel that works in place. On the Brazil domain (12,170,007,168
+    cells) each is 48.7 GB (45.3 GiB) and the two 97.4 GB. The
+    full-domain attempts to compute upslope means stopped with a memory
+    error at this allocation, after the flow routing had finished and
+    with the run's other arrays in memory; the copies are where the
+    allocation failed, not by themselves the whole shortfall.
 
     ``w`` must be a writable, C-contiguous float32 array of the flow
     grid's shape, and it is CONSUMED: accumulated in place and returned,
@@ -109,17 +113,25 @@ def vertical_distance_to_stream(fd, stream, dem) -> np.ndarray:
 
     The library version reads ``grid.z[self.source_indices]``, and
     ``source_indices`` is a *property* returning
-    ``np.unravel_index(self.source, self.shape, self.order)`` -- a tuple
-    of two int64 arrays, one entry per flow edge. On the Brazil domain
-    that is 195 GB, rebuilt on every attribute access, and the function
-    touches it twice and then holds three more full-length float32
-    arrays (``zsources``, ``ztarget``, ``dz``): well over 340 GB.
+    ``np.unravel_index(self.source, self.shape, self.order)``, a tuple
+    of two int64 arrays with one entry per flow edge (16 bytes per
+    edge), rebuilt on every attribute access. The function reads
+    ``source_indices`` twice and ``target_indices`` once, and builds
+    edge-length float32 arrays for the source elevations, the target
+    elevations and their difference. With E flow edges and N cells, on
+    the Brazil domain (E about 5.1e9, N = 1.217e10) each index tuple is
+    about 82 GB and each edge-length float32 array about 20 GB (decimal
+    GB). These allocations follow one another and are not all live at
+    once, so their sum is a volume of allocation, not a peak.
 
     Indexing the grid flat gives exactly the same elements for a
     C-ordered grid without materialising any index array, and the
-    difference is accumulated chunk-wise, so the peak is the two arrays
-    the kernel genuinely needs: ``dz`` (per edge) and ``up_z`` (per
-    cell), ~97 GB on Brazil.
+    difference is accumulated chunk-wise. The two main arrays are then
+    ``dz`` (4 bytes per edge) and ``up_z`` (4 bytes per cell), 4E + 4N
+    bytes, about 69 GB on Brazil. That is the budget of those two
+    arrays, not a measured peak: the stream mask, the chunk temporaries,
+    a float32 copy of the DEM when it is stored in another type, and
+    the flow object's own arrays come on top.
     """
     _check_c_order(fd)
     zflat = np.asarray(dem.z, dtype=np.float32).reshape(-1)
@@ -190,8 +202,9 @@ def distance_to_stream(net: FlowNet) -> np.ndarray:
     # The step length is diagonal where the edge changes both row and
     # column. Written chunk-wise: a one-shot formulation builds r1, c1,
     # r2 and c2 as full int64 arrays with one entry per flow edge --
-    # 4 x 97.4 GB on the Brazil domain, plus a float64 np.where result
-    # and two bool masks, roughly 700 GB to scatter two distinct numbers.
+    # 4 x 41 GB on the Brazil domain (about 5.1e9 edges), plus a float64
+    # np.where result (41 GB) and two bool masks (5 GB each), roughly
+    # 215 GB to scatter two distinct numbers.
     # Chunked, the temporaries are a few GB whatever the DEM.
     src, dst = net.fd_src, net.fd_dst
     n_edges = int(src.size)
@@ -328,8 +341,11 @@ def upslope_mean(fd, values: np.ndarray) -> np.ndarray:
     holds two float64 copies of a full-domain accumulation, 97.4 GB
     each, and ``fd.flow_accumulation`` adds two more full-grid float32
     copies of its own (see ``flow_accumulation_inplace``). Working in
-    place throughout, the peak is the numerator, the denominator and
-    one per-edge fraction array: ~146 GB. float32 is adequate here --
+    place throughout, the largest set of arrays alive at once is the
+    numerator and the denominator (4 bytes per cell each), the mask of
+    finite cells (1 byte per cell) and the kernel's per-edge fraction
+    array (4 bytes per edge), about 130 GB on Brazil; the flow object
+    and the caller's other arrays come on top. float32 is adequate here --
     the result is a mean slope in degrees and both operands are float32
     accumulations.
     """

@@ -57,7 +57,7 @@ def fx_grid(grid: GridSpec, fd_src: np.ndarray,
     """FX raster, int8 (nr+1, nc+1).
 
     Processed in chunks: the full domain has ~5.1e9 flow edges, and a
-    single int64 temporary over all of them is 38 GB. Peak extra memory
+    single int64 temporary over all of them is 41 GB (38 GiB). Peak extra memory
     is one chunk regardless of domain size.
 
     For D8 steps, dr and dc are in {-1, 0, 1}, so ``dr * dc == +1``

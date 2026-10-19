@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.2
+
+No change in behaviour; documentation and docstrings only.
+
+- `docs/validation.md` states which code computed the MATLAB reference
+  routing. The reference exports were made with a TopoToolbox copy whose
+  libtopotoolbox bindings were not compiled, so MATLAB ran its own code
+  for every routing step; on Big Tujunga the same call with the bindings
+  gives identical flow edges. The disagreement with pytopotoolbox is
+  described by the classes a screening assigns most of it to, with the
+  rest left unclassified, instead of as tie-breaking alone.
+- The memory figures in the docstrings and comments of
+  `flow_accumulation_inplace`, `vertical_distance_to_stream`,
+  `distance_to_stream`, `upslope_mean`, `fx_grid` and the pipeline's
+  release of the flow-edge arrays size per-edge arrays by the number of
+  flow edges (about 5.1e9 on the Brazil domain) rather than the number
+  of cells, mark binary units as GiB, and separate the arrays alive at
+  once from the total allocated over a call.
+
 ## 0.1.1
 
 - `flow_accumulation_inplace` refuses weights it cannot index correctly.

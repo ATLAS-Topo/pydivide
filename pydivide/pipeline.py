@@ -601,8 +601,9 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
     FX = staged("fx", lambda: {"FX": fx_grid(net.grid, net.fd_src,
                                              net.fd_dst)})["FX"]
     # the flow-edge arrays are not needed past FX; release every
-    # reference (at full-domain size they are the largest allocation,
-    # ~195 GB, and the FlowObject holds the same arrays)
+    # reference (at full-domain size they are two int64 arrays over
+    # about 5.1e9 flow edges, ~82 GB, and the FlowObject holds the same
+    # arrays)
     order_st = np.argsort(net.st_nodes, kind="stable")
     sorted_st = net.st_nodes[order_st]
     out_lab = nal[order_st][np.searchsorted(sorted_st, net.outlets)]
