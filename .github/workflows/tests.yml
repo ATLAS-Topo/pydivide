@@ -76,3 +76,42 @@ jobs:
 
       - name: Run tests
         run: pytest tests -q -rs
+
+  # The low-memory flow kernels are checked against pytopotoolbox on a
+  # real routed network, a 1200 x 1200 corner of the Brazil window of the
+  # paper's data deposit. The window is fetched from the deposit, checked
+  # against the SHA-256 its manifest publishes, and cached between runs.
+  real-dem:
+    name: real-DEM tests (Brazil window from the data deposit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Restore the Brazil window
+        id: dem
+        uses: actions/cache@v4
+        with:
+          path: test_data/brazil_crop_4000.tif
+          key: brazil-crop-4000-b15455442c55
+
+      - name: Fetch the Brazil window from the data deposit
+        if: steps.dem.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p test_data
+          curl -fL --retry 5 --retry-delay 30 -o test_data/brazil_crop_4000.tif             "https://zenodo.org/records/14748886/files/brazil_crop_4000.tif?download=1"
+
+      - name: Check it against the deposit's manifest
+        run: |
+          echo "b15455442c55162f9085c2c006f23f2823052c42513da6f27498bb523dfd0661  test_data/brazil_crop_4000.tif" | sha256sum -c -
+
+      - name: Run the tests that need it
+        run: pytest tests/test_lowmem_flow.py -q -rs

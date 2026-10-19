@@ -128,11 +128,13 @@ automatically (about 20 minutes for both).
    directory under `reference_data/` that holds a `manifest.json`, so
    the new DEM is picked up without any configuration.
 
-`matlab_scripts/check_divnet_edge_loss.m` is a stand-alone check that
-runs entirely inside MATLAB: it compares the edges the `DIVIDEobj`
-constructor produces with the edges its final network keeps, and reports
-how many were dropped and where. It involves no `pydivide` code and is
-useful for checking a TopoToolbox version independently.
+`matlab_scripts/check_divide_stages.m` is a stand-alone check that
+runs entirely inside MATLAB: it builds the raw divide geometry with the
+`DIVIDEobj` constructor, runs `divnet` and `sort` on it separately, and
+reports the edges each stage removes and where, optionally on the flow
+edges of a reference export so that two TopoToolbox versions see the
+same flow network. It involves no `pydivide` code and is useful for
+checking a TopoToolbox version independently.
 
 ## What the ladder does not establish, measured
 

@@ -35,7 +35,7 @@ from .checkpoint import StageStore, array_fingerprint
 from .flownet import FlowNet
 from .geometry import divide_edges, pair_isin
 from .gridspec import GridSpec
-from .labels import basin_labels
+from .labels import basin_labels, check_stream_threshold
 from .network import fx_grid, segment_network
 from .orderdist import SortedNetwork, divdist, divorder, sort_network
 
@@ -510,7 +510,9 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
         Ignored when ``fd`` and ``st`` are both given.
     fd, st : pytopotoolbox FlowObject / StreamObject, optional
     minarea : float
-        Stream threshold, in ``units`` ('m2' or 'pixels').
+        Stream threshold, in ``units`` ('m2' or 'pixels'): a finite
+        positive number. Used only when the stream network is built
+        here, that is when ``st`` is not given.
     checkpoint_dir : path, optional
         Enables stage checkpointing and resume.
     release_inputs : bool
@@ -534,6 +536,8 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
     if fd is None or st is None:
         if dem is None:
             raise ValueError("either dem or (fd, st) must be given")
+        if st is None:
+            minarea = check_stream_threshold(minarea, "minarea")
         if isinstance(dem, (str, Path)):
             log(f"reading {dem}")
             dem = tt.read_tif(str(dem))

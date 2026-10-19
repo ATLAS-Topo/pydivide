@@ -9,7 +9,9 @@ crash; a zero contrast implies no direction and the basin-pair map draws
 the shared divide; a flow object of another grid is refused by the
 reach-label call; the CRS repair script fails on a missing file and
 writes nothing on a dry run; a single-node segment's midpoint is its own
-node."""
+node; the in-place flow accumulation refuses buffers it would index
+wrongly and the upslope mean gives one answer whatever the input
+layout; a stream threshold must be a finite positive number."""
 
 from __future__ import annotations
 
@@ -534,3 +536,85 @@ def test_reach_basin_labels_refuse_a_flow_object_of_another_grid(routed):
     shifted = _surface(1, x0=3000.0)          # the same cells, 3 km further east
     with pytest.raises(ValueError, match="origin"):
         reach_basin_labels(shifted, 200 * CS * CS, fd=fd)
+
+
+# ---- in-place flow accumulation: buffer layout --------------------------
+
+def _flow_and_weights():
+    dem = _surface(5, n=40)
+    fd = tt3.FlowObject(dem)
+    assert fd.order == "C"
+    yy, xx = np.indices(fd.shape)
+    return fd, np.asarray(1 + xx + 3 * yy, dtype=np.float32)
+
+
+@pytest.mark.parametrize("layout", ["fortran", "strided"])
+def test_inplace_accumulation_refuses_a_buffer_it_would_index_wrongly(layout):
+    from pydivide.grids import flow_accumulation_inplace
+    fd, w = _flow_and_weights()
+    if layout == "fortran":
+        backing = np.asfortranarray(w)
+        weights = backing
+    else:
+        backing = np.zeros((w.shape[0], 2 * w.shape[1]), dtype=np.float32)
+        weights = backing[:, ::2]
+        weights[:] = w
+    before = backing.copy()
+    with pytest.raises(ValueError, match="C-contiguous"):
+        flow_accumulation_inplace(fd, weights)
+    # nothing written, the cells outside a strided view included
+    assert np.array_equal(backing, before)
+
+
+def test_inplace_accumulation_refuses_a_read_only_buffer():
+    from pydivide.grids import flow_accumulation_inplace
+    fd, w = _flow_and_weights()
+    w.flags.writeable = False
+    with pytest.raises(ValueError, match="writable"):
+        flow_accumulation_inplace(fd, w)
+
+
+def test_inplace_accumulation_of_a_c_buffer_equals_the_library():
+    from pydivide.grids import flow_accumulation_inplace
+    fd, w = _flow_and_weights()
+    expected = np.asarray(fd.flow_accumulation(weights=w.copy()).z)
+    got = flow_accumulation_inplace(fd, w)
+    assert got is w
+    assert np.array_equal(got, expected)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_upslope_mean_does_not_depend_on_the_input_layout(dtype):
+    from pydivide.grids import upslope_mean
+    fd, w = _flow_and_weights()
+    yy, xx = np.indices(fd.shape)
+    vals = np.asarray(np.sin(xx / 3.0) + yy / 10.0, dtype=dtype)
+    # every call gets its own array: a C-ordered float32 input is consumed
+    ref = upslope_mean(fd, np.array(vals, order="C"))
+    fort = np.asfortranarray(vals.copy())
+    kept = fort.copy(order="A")
+    assert np.array_equal(upslope_mean(fd, fort), ref, equal_nan=True)
+    back = np.zeros((vals.shape[0], 2 * vals.shape[1]), dtype=dtype)
+    back[:, ::2] = vals
+    assert np.array_equal(upslope_mean(fd, back[:, ::2]), ref, equal_nan=True)
+    assert np.array_equal(fort, kept)     # a copy was summed, not the caller's array
+
+
+# ---- stream thresholds --------------------------------------------------
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), 0.0, -1e6, "a"])
+def test_a_stream_threshold_must_be_finite_and_positive(bad):
+    import pydivide
+    from pydivide import reach_basin_labels
+    dem = _surface(2, n=40)
+    with pytest.raises(ValueError, match="finite positive"):
+        pydivide.divide_network(dem, minarea=bad, verbose=False)
+    with pytest.raises(ValueError, match="finite positive"):
+        reach_basin_labels(dem, bad)
+
+
+def test_a_valid_threshold_still_gives_a_network():
+    import pydivide
+    dem = _surface(2, n=60)
+    D = pydivide.divide_network(dem, minarea=50 * CS * CS, verbose=False)
+    assert D.n_segments > 0

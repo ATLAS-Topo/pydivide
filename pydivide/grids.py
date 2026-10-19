@@ -70,10 +70,14 @@ def flow_accumulation_inplace(fd, w: np.ndarray) -> np.ndarray:
     ahead of a kernel that works in place, which is more than a 512 GB
     machine holds together with the routing.
 
-    ``w`` is CONSUMED: it is accumulated in place and returned, so pass
-    an array nothing else holds. Everything else is identical to the
-    library call, including the C kernel, so results are bit-identical
-    (``tests/test_lowmem_flow.py``).
+    ``w`` must be a writable, C-contiguous float32 array of the flow
+    grid's shape, and it is CONSUMED: accumulated in place and returned,
+    so pass an array nothing else holds. The kernel indexes the buffer
+    flat, so a Fortran-ordered array or a strided view would be read and
+    written in the wrong places; such arrays are refused rather than
+    copied, which would break the memory contract. Everything else is
+    identical to the library call, including the C kernel, so results
+    are bit-identical (``tests/test_lowmem_flow.py``).
     """
     _check_c_order(fd)
     w = np.asarray(w)
@@ -81,6 +85,11 @@ def flow_accumulation_inplace(fd, w: np.ndarray) -> np.ndarray:
         raise TypeError(f"weights must be float32, got {w.dtype}")
     if w.shape != tuple(fd.shape):
         raise ValueError(f"weights shape {w.shape} != flow grid {fd.shape}")
+    if not w.flags.c_contiguous:
+        raise ValueError("weights must be C-contiguous for the in-place accumulation "
+                         "(numpy.ascontiguousarray makes a C-ordered copy)")
+    if not w.flags.writeable:
+        raise ValueError("weights must be writable for the in-place accumulation")
     fraction = np.ones_like(fd.source, dtype=np.float32)
     _stream_kernels().traverse_down_f32_add_mul(w, fraction,
                                                 fd.source, fd.target)
@@ -325,8 +334,10 @@ def upslope_mean(fd, values: np.ndarray) -> np.ndarray:
     accumulations.
     """
     v = np.asarray(values, dtype=np.float32)
-    if v.base is not None or v.dtype != np.float32:
-        v = np.array(values, dtype=np.float32)        # own it before mutating
+    if v.base is not None or not v.flags.c_contiguous or not v.flags.writeable:
+        # own a C-ordered copy before mutating: the in-place kernel reads
+        # the buffer flat, so any other layout would be summed wrongly
+        v = np.array(values, dtype=np.float32, order="C")
     finite = np.isfinite(v)
     # in place, no temporary: NaN and +/-inf both become 0
     np.nan_to_num(v, copy=False, nan=0.0, posinf=0.0, neginf=0.0)

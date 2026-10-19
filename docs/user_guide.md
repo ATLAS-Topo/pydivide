@@ -45,7 +45,7 @@ checkpoint_dir=None, verbose=True, release_inputs=False)`
 |---|---|---|
 | `dem` | path to a GeoTIFF, or a pytopotoolbox `GridObject`; ignored when `fd` and `st` are both given | |
 | `fd`, `st` | pytopotoolbox `FlowObject` and `StreamObject` | built from `dem` |
-| `minarea` | drainage area at which a channel begins, in `units` | `1e6` |
+| `minarea` | drainage area at which a channel begins, in `units`; a finite positive number, refused otherwise | `1e6` |
 | `units` | `"m2"` or `"pixels"` | `"m2"` |
 | `checkpoint_dir` | folder for stage checkpoints; an interrupted run resumes from the last completed stage (section 10) | none |
 | `verbose` | print each stage with a time stamp | `True` |
@@ -458,7 +458,8 @@ smallest labels, so it is always a pair one of its edges borders.
 `along_s`, `along_z`, `along_xy` and `across` are the main path's
 profile and sections, for callers that expect one line.
 
-Plots (`pip install "pydivide[plot]"`):
+Plots (`pip install -e ".[plot]"` in a clone, or
+`pip install "pydivide[plot] @ git+https://github.com/ATLAS-Topo/pydivide"`):
 
 ```python
 from pydivide.plotting import plot_divide_values, plot_signed_divides, plot_basin_pair
@@ -558,7 +559,8 @@ Outputs: `divides_seg150.gpkg`, `divides_seg300.gpkg`, `divides_full.gpkg`
 `.shp` copies of the divide and stream layers when `--shp` is given. A
 File Geodatabase is made from any of these GeoPackages with
 `scripts/export_gdb.py` (section 3). The script needs `psutil`
-(`pip install "pydivide[scripts]"`).
+(`pip install -e ".[scripts]"` in a clone, or
+`pip install "pydivide[scripts] @ git+https://github.com/ATLAS-Topo/pydivide"`).
 
 ## 10. Checkpointing, memory and time
 
@@ -627,7 +629,12 @@ avoid full-grid temporaries, with bit-identical results:
 `nal_to_hillslopes(net, nal)` (propagate a stream node-attribute list to
 every cell), `arcslope_degrees(z, cellsize)` and `upslope_mean(fd, values)`.
 They matter only on domains where a single extra copy of the grid is
-tens of gigabytes.
+tens of gigabytes. `flow_accumulation_inplace` accumulates into `w`
+itself, so `w` must be a writable, C-ordered float32 array of the grid's
+shape that nothing else needs; any other array is refused
+(`numpy.ascontiguousarray` makes a C-ordered copy). `upslope_mean`
+consumes a C-ordered float32 `values` array the same way and copies any
+other layout first.
 
 ## 13. Index of the public names
 

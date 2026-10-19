@@ -152,6 +152,20 @@ def first_stream_cell_downstream(net: FlowNet) -> np.ndarray:
     return result
 
 
+def check_stream_threshold(value, name: str = "threshold") -> float:
+    """A channel-initiation threshold as a float, refused unless it is a
+    finite positive number: NaN or infinity would give an empty stream
+    network and zero or a negative value a stream through every cell,
+    both silently."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a finite positive number, got {value!r}") from None
+    if not np.isfinite(v) or v <= 0:
+        raise ValueError(f"{name} must be a finite positive number, got {value!r}")
+    return v
+
+
 def reach_basin_labels(dem, threshold: float, *, fd=None, units: str = "m2") -> np.ndarray:
     """The reach-basin label raster of one partition of the stream network.
 
@@ -166,6 +180,7 @@ def reach_basin_labels(dem, threshold: float, *, fd=None, units: str = "m2") -> 
     only the pairs it separates change.
     """
     import topotoolbox as tt
+    threshold = check_stream_threshold(threshold)
     if fd is None:
         fd = tt.FlowObject(dem)
     else:
@@ -173,7 +188,7 @@ def reach_basin_labels(dem, threshold: float, *, fd=None, units: str = "m2") -> 
         # place, and a label raster carries no transform to reveal it
         from .gridspec import check_same_grid
         check_same_grid(dem, "dem", fd, "fd")
-    st = tt.StreamObject(fd, threshold=float(threshold), units=units)
+    st = tt.StreamObject(fd, threshold=threshold, units=units)
     net = FlowNet.from_pytopotoolbox(fd, st)
     return basin_labels(net)[0]
 

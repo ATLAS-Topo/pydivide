@@ -39,7 +39,8 @@ packages listed below.
 Python 3.10 or later, with `numpy`, `scipy`, `rasterio`, `geopandas`,
 `shapely`, `pyproj` and `topotoolbox` (pytopotoolbox, which does the
 flow routing). All are installed by `pip` with the package. Plots need
-`matplotlib` (`pip install "pydivide[plot]"`). Memory scales with the
+`matplotlib`, installed with the `plot` extra (see Installation).
+Memory scales with the
 DEM: a 16-million-cell DEM needs under 1 GB, a 400-million-cell DEM
 about 15 GB, and a 12-billion-cell DEM about 460 GB at its peak.
 
@@ -50,6 +51,14 @@ name `pydivide` there):
 
 ```bash
 pip install git+https://github.com/ATLAS-Topo/pydivide
+```
+
+With an extra (`plot` for the figures, `scripts` for the command-line
+scripts), name it before the address. Never `pip install "pydivide[plot]"`
+alone, which installs the unrelated PyPI project:
+
+```bash
+pip install "pydivide[plot] @ git+https://github.com/ATLAS-Topo/pydivide"
 ```
 
 Or clone the repository and install it in place, which is the way to

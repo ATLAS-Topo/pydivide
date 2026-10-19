@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.1
+
+- `flow_accumulation_inplace` refuses weights it cannot index correctly.
+  The kernel reads the buffer flat, so a Fortran-ordered array or a
+  strided view was summed as if it were C-ordered, and a view was
+  written outside its own cells; such arrays, and read-only ones, now
+  raise a `ValueError` instead. `upslope_mean` sums a C-ordered copy of
+  any input that is not an owned, writable, C-ordered array, so its
+  result no longer depends on the input layout. Nothing in the package
+  passes such arrays to either function, and grids read with
+  `topotoolbox.read_tif` or `rasterio` are C-ordered.
+- `divide_network` (`minarea`) and `reach_basin_labels` (`threshold`)
+  refuse a stream threshold that is not a finite positive number, which
+  gave an empty network (NaN, infinity) or a stream through every cell
+  (zero, negative values) without warning.
+- The installation commands with an extra name the GitHub source:
+  `pip install "pydivide[plot]"` on its own installs an unrelated
+  project that holds the name on PyPI.
+- `matlab_scripts/check_divide_stages.m` replaces
+  `check_divnet_edge_loss.m`. It runs the `DIVIDEobj` constructor,
+  `divnet` and `sort` separately, optionally on injected flow edges, and
+  reports the edges each stage removes. On the Brazil window of the
+  paper's data deposit the 16,346 edges that the full `DIVIDEobj`
+  pipeline of TopoToolbox 3 `main` drops are removed by `sort`, not by
+  `divnet`; the earlier script compared only the constructor with the
+  finished network and could not tell the two apart.
+- The test workflow also runs the low-memory flow tests on the Brazil
+  window, fetched from the data deposit and checked against the SHA-256
+  its manifest publishes.
+
 ## 0.1.0 (first public release)
 
 - Divide networks from a DEM or from pytopotoolbox routing objects
