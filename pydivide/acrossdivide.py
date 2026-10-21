@@ -287,6 +287,23 @@ class AcrossDivideTable:
                        f"Both the base level and the channel threshold change the "
                        f"sign of the chi contrast on a measurable fraction of "
                        f"divides, so neither is a default and both are reported here.")
+            records = ([("", s)] if "n_chi_pieces_both_outlets_known" in s else
+                       [(tag, rec) for tag, rec in s.get("per_scale", {}).items()
+                        if "n_chi_pieces_both_outlets_known" in rec])
+            for tag, rec in records:
+                at = f" at {tag.lstrip('_')} {units}" if tag else ""
+                n_no, n_all = rec["n_chi_pieces_without_common_base"], \
+                    rec["n_chi_pieces_both_outlets_known"]
+                if n_no:
+                    out.append(f"{n_no:,} of the {n_all:,} pieces with a chi contrast{at} "
+                               f"have a side draining to a river system that leaves the DEM "
+                               f"above the base level ({rec['n_systems_above_baselevel']} "
+                               f"such systems), so their contrasts compare two different "
+                               f"base levels; they are flagged chi_common_base = 0.")
+                else:
+                    out.append(f"Both sides of every piece with a chi contrast{at} drain to "
+                               f"river systems that reach the base level "
+                               f"(chi_common_base = 1 throughout).")
         else:
             out.append("chi was not computed.")
         return " ".join(out)
@@ -481,7 +498,14 @@ def across_divide_metrics(dem, *, flow=None, streams=None, divides=None,
         meaningful only where both sides are referenced to the same base
         level and moving that base level reverses the sign of the
         contrast for 6 to 18 % of the divides between different river
-        systems.
+        systems. A river system that leaves the DEM above the base level
+        never reaches it and integrates chi from its own outlet instead,
+        so every piece also carries the elevation at which each side's
+        system leaves the network (``outlet_z_a``, ``outlet_z_b``) and
+        the flag ``chi_common_base``, 1 where both lie at or below the
+        base level, 0 where the contrast compares two base levels, NaN
+        where a side has no outlet; ``settings`` counts the affected
+        pieces and systems.
     threshold
         Drainage area at which a channel is taken to begin, in ``units``.
         It fixes where hillslope relief, flow distance and chi are
@@ -682,6 +706,47 @@ def across_divide_metrics(dem, *, flow=None, streams=None, divides=None,
         o = np.full(b.shape, np.nan)
         o[ok] = outl[b[ok].astype(np.int64)]
         cols[nm.replace("basin", "outlet")] = o
+    # the elevation at which each side's river system leaves the stream
+    # network, and whether both lie at or below the chi base level. chi is
+    # integrated from the base level only along a river that reaches it;
+    # a system that leaves the DEM above the base level starts its chi at
+    # its own outlet, so a contrast between such a system and one that
+    # reaches the base level compares two different base levels, and the
+    # flag says so piece by piece
+    z_out = np.full(len(outl), np.nan)
+    oc = np.asarray(net.outlets, dtype=np.int64)
+    oc = oc[(oc >= 0) & (oc < L.size)]
+    oc = oc[L[oc] > 0]
+    z_out[L[oc]] = z[oc]
+    for nm in ("outlet_a", "outlet_b"):
+        o = np.asarray(cols[nm])
+        ok = np.isfinite(o)
+        v = np.full(o.shape, np.nan)
+        v[ok] = z_out[o[ok].astype(np.int64)]
+        cols[nm.replace("outlet", "outlet_z")] = v
+    if "chi" in grids:
+        b = float(baselevel)
+        za, zb = cols["outlet_z_a"], cols["outlet_z_b"]
+        known = np.isfinite(za) & np.isfinite(zb)
+        flag = np.full(za.shape, np.nan)
+        flag[known] = ((za[known] <= b) & (zb[known] <= b)).astype(np.float64)
+        cols["chi_common_base"] = flag
+        with_chi = known & np.isfinite(np.asarray(cols[metric_column("chi", "sgn")], float))
+        above = np.unique(np.concatenate([
+            np.asarray(cols["outlet_a"])[with_chi & (za > b)],
+            np.asarray(cols["outlet_b"])[with_chi & (zb > b)]]))
+        settings["n_chi_pieces_both_outlets_known"] = int(with_chi.sum())
+        settings["n_chi_pieces_without_common_base"] = int((with_chi & (flag == 0)).sum())
+        settings["n_systems_above_baselevel"] = int(len(above))
+        if settings["n_chi_pieces_without_common_base"]:
+            settings["common_base_warning"] = (
+                f"{settings['n_chi_pieces_without_common_base']:,} of the "
+                f"{settings['n_chi_pieces_both_outlets_known']:,} pieces with a chi contrast "
+                f"have a side that drains to a river system leaving the DEM above the base "
+                f"level of {b:g} m ({settings['n_systems_above_baselevel']} such systems); "
+                f"chi on that side starts at the system's own outlet, so those contrasts "
+                f"compare two different base levels. They are flagged chi_common_base = 0; "
+                f"read chi contrasts where chi_common_base = 1, or enlarge the DEM.")
     # mixed: the labels on either side are not constant along the piece.
     # Compared side by side, exactly, not through a combined key.
     lo = np.where(valid, tab.pair_lo.astype(np.float64), np.nan)

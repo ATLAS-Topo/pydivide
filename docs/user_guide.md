@@ -242,8 +242,11 @@ and `<family>_max`, and the signed contrast `<family>_sgn` (A − B),
 each the mean over the piece's edges of the per-edge value. Then the
 divide asymmetry index `dai` (`hr_diff / (2 hr_mean)`), the basin and
 outlet identity of both sides (`basin_a`, `basin_b`, `outlet_a`,
-`outlet_b`), a flag `basin_pair_mixed` for pieces whose edges border
-more than one basin pair, and a coherence column per family. On a
+`outlet_b`), the elevation at which each side's river system leaves
+the stream network (`outlet_z_a`, `outlet_z_b`), with chi the flag
+`chi_common_base` (below), a flag `basin_pair_mixed` for pieces whose
+edges border more than one basin pair, and a coherence column per
+family. On a
 mixed piece the pair reported is the one on most of its edges, ties
 going to the smallest labels, so it is always a pair one of its edges
 borders, and `basin_pair_share` is the fraction of the piece's
@@ -289,6 +292,24 @@ cells above that elevation and the integration starts there. If the
 value is at or below the lowest cell of the DEM nothing is trimmed and
 `tab.settings["baselevel_warning"]` says so. The concavity `mn` and
 reference area `a0` are recorded in `settings` for the same reason.
+
+**Both sides must reach the base level.** Trimming the network at an
+elevation does not make every river reach it: a river system that
+leaves the DEM above the base level integrates chi from its own outlet,
+so a contrast between it and a system that does reach the base level
+compares two different base levels. Every piece therefore carries the
+elevation at which each side's system leaves the network, `outlet_z_a`
+and `outlet_z_b`, and `chi_common_base`, which is 1 where both lie at
+or below the base level, 0 where they do not, and NaN where a side has
+no outlet. Read chi contrasts where `chi_common_base = 1`;
+`settings["n_chi_pieces_without_common_base"]` and
+`settings["n_systems_above_baselevel"]` count the rest,
+`settings["common_base_warning"]` spells it out, and `describe()` states
+it. A DEM clipped around a study area usually cuts its neighbours'
+rivers off above the base level of the main river; the remedy is a
+larger DEM, computed whole and shown clipped, not a higher base level,
+which removes channels from every basin and changes the sign of the
+contrast on a measurable fraction of divides.
 
 **Where the indicators disagree.**
 
@@ -439,10 +460,14 @@ The conventions, stated because a reader needs them:
   across the width are reported at every distance.
 - Every normal is turned so that negative distances lie in the basin with
   the lower label (`label_a`) and positive distances in the other
-  (`label_b`), decided by the labels of the two cells of the edge under
-  the station: the side convention of the signed metrics, so the picture
-  and the sign cannot disagree. A section is a straight line in map space
-  and can leave both basins within its length.
+  (`label_b`): the side convention of the signed metrics, so the picture
+  and the sign refer to the same two sides. The side is decided by the
+  labels of the cells flanking the divide over the same stretch that
+  sets the direction of the section, not by the edge under the station
+  alone: on a grid the divide is a staircase of cell faces, and a face
+  that runs across the trend of the divide does not tell the sides
+  apart. A section is a straight line in map space and can leave both
+  basins within its length.
 - The main path is the longest; every other path is drawn in its own
   panel, named as a branch (with the kilometre where it leaves the main
   path), a branch of a branch, or a separate stretch. `ylim` fixes the

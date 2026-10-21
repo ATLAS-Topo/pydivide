@@ -47,7 +47,7 @@ try:                                   # one source of truth: the package metada
     from importlib.metadata import version as _version
     __version__ = _version("pydivide")
 except Exception:                      # not installed (run from a checkout)
-    __version__ = "0.1.2"
+    __version__ = "0.2.0"
 
 __all__ = [
     "GridSpec",

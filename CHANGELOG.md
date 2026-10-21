@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.0
+
+- `across_divide_metrics` records the elevation at which each side's
+  river system leaves the stream network (`outlet_z_a`, `outlet_z_b`)
+  and, when chi is computed, whether both lie at or below the base level
+  (`chi_common_base`: 1, 0, or NaN where a side has no outlet). chi is
+  integrated from the base level only along a river that reaches it; a
+  system that leaves the DEM above the base level starts its chi at its
+  own outlet, so a contrast between it and a system that reaches the
+  base level compares two different base levels. `settings` counts the
+  affected pieces and systems and carries `common_base_warning`, and
+  `describe()` states the count; the multiscale table carries the flag
+  per scale. On the Big Tujunga DEM of pytopotoolbox at a base level of
+  400 m, 28 of the 30 river systems leave the DEM above it and 2,482 of
+  the 4,745 pieces with a chi contrast are flagged; on the Taiwan DEM at
+  20 m none is. The user guide (section 5) describes the flag.
+- `basin_pair_profiles` decides which way each normal faces from the
+  cells flanking the divide over the same stretch that sets the
+  direction of the normal (the tangent window), so that negative
+  distances lie in basin A at every station. It used the flanking cell
+  of the single edge under the station. On a grid the divide is a
+  staircase of cell faces, and a station on a face running across the
+  trend of the divide can lie further from that cell along the normal
+  than beside it, so some sections were drawn with the two basins
+  swapped: 11 of the 125 sections whose two ends lie clearly in the two
+  basins, on the 15 longest divides of the 10⁷ m² partition of Big
+  Tujunga. The along-divide profile, the signed metrics and the arrows
+  of `plot_signed_divides` do not use the normals and are unchanged. The
+  rule is `profiles.side_points`; a test checks the side of every such
+  section on Big Tujunga, and `docs/user_guide.md` describes it.
+
 ## 0.1.2
 
 No change in behaviour; documentation and docstrings only.

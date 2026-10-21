@@ -34,8 +34,10 @@ the points half a spacing before and after it along the path; a divide
 on a grid is a staircase of cell faces and has a direction only over a
 length. Every normal is turned so that negative distances lie in the
 basin with the lower label (``label_a``) and positive distances in the
-other (``label_b``), decided by the labels of the two cells of the edge
-under the station: the side convention of the signed metrics. A normal
+other (``label_b``), the side convention of the signed metrics. The side
+is decided by the labels of the cells flanking the divide over the same
+stretch that gives its direction, not by the edge under the station
+alone, which on a staircase can face across the divide's trend. A normal
 is a line in map space and can leave both basins within its length.
 
 **The pair key.** ``pair_key(lo, hi, threshold)`` in
@@ -158,6 +160,40 @@ def orient_normals(nrm, p, hi_side_xy) -> np.ndarray:
     dot = nrm[:, 0] * d[:, 0] + nrm[:, 1] * d[:, 1]
     nrm[np.isfinite(dot) & (dot < 0)] *= -1.0
     return nrm
+
+
+def side_points(pt, s, edge_s, inward, window: float, length: float | None = None) -> np.ndarray:
+    """Per station, a point on the side the normals must face: the station
+    ``pt`` moved by the sum of ``inward`` over the edges whose centres
+    ``edge_s`` (distances along the path, increasing) lie within half a
+    ``window`` of the station's distance ``s``. ``length`` marks a closed
+    path of that length, around which the window wraps.
+
+    ``inward`` is, per edge, the step from its flanking cell outside the
+    target basin to its flanking cell inside it, zero where a side is
+    unknown. Along a staircase of cell faces with the target basin on one
+    side, the sum of these steps over a stretch of the path is the chord
+    of that stretch turned 90 degrees towards the target, so the side it
+    gives agrees with the chord normal whatever the shape of the
+    staircase. The flanking cell of the single edge under a station does
+    not: on a face that runs across the divide's mean direction, the
+    station can lie further from that cell along the normal than beside
+    it. NaN where the window sum is zero."""
+    pt = np.asarray(pt, float)
+    s = np.asarray(s, float)
+    es = np.asarray(edge_s, float)
+    v = np.asarray(inward, float).reshape(-1, 2)
+    if length is not None and len(es):
+        es = np.concatenate([es - length, es, es + length])
+        v = np.concatenate([v, v, v])
+    c = np.vstack([np.zeros((1, 2)), np.cumsum(v, axis=0)])
+    half = float(window) / 2.0
+    a = np.searchsorted(es, s - half, side="left")
+    b = np.searchsorted(es, s + half, side="right")
+    d = c[b] - c[a]
+    out = pt + d
+    out[(d[:, 0] == 0) & (d[:, 1] == 0)] = np.nan
+    return out
 
 
 def bilinear(z, x0: float, y0: float, cs: float, xs, ys, nodata=None) -> np.ndarray:
@@ -454,15 +490,32 @@ class _PairContext:
         g = self.grid
         return bilinear(self.z2, g.x0, g.y0, self.cs, xs, ys, self.nodata)
 
-    def hi_side_points(self, p: PairPath, s, hi: int) -> np.ndarray:
-        """Per station, the centre of the flanking cell in basin ``hi``."""
+    def hi_side_points(self, p: PairPath, s, hi: int, pt, window: float) -> np.ndarray:
+        """Per station, a point on the side of basin ``hi``: the station
+        ``pt`` moved by :func:`side_points` over the stations' tangent
+        ``window``, so that the side is decided by the same stretch of
+        divide as the direction of the normal. Where that gives nothing,
+        the centre of the flanking cell in ``hi`` of the edge under the
+        station."""
         from .divmetrics import cell_xy
-        j = np.clip((np.asarray(s, float) / self.cs).astype(np.int64), 0, p.n_edges - 1)
-        e = p.edges[j]
-        cell = np.where(self.la[e] == hi, self.ca[e], np.where(self.lb[e] == hi, self.cb[e], -1))
-        x, y = cell_xy(self.grid, cell)
-        out = np.column_stack([np.asarray(x, float), np.asarray(y, float)])
-        out[cell < 0] = np.nan
+        e = p.edges
+        cin = np.where(self.la[e] == hi, self.ca[e], np.where(self.lb[e] == hi, self.cb[e], -1))
+        cout = np.where(self.la[e] == hi, self.cb[e], np.where(self.lb[e] == hi, self.ca[e], -1))
+        xi, yi = cell_xy(self.grid, cin)
+        xo, yo = cell_xy(self.grid, cout)
+        inward = np.column_stack([np.asarray(xi, float) - np.asarray(xo, float),
+                                  np.asarray(yi, float) - np.asarray(yo, float)])
+        inward[(cin < 0) | (cout < 0)] = 0.0
+        out = side_points(pt, s, p.s, inward, window,
+                          length=p.n_edges * self.cs if p.is_cycle else None)
+        miss = ~np.isfinite(out[:, 0])
+        if miss.any():
+            j = np.clip((np.asarray(s, float)[miss] / self.cs).astype(np.int64), 0, p.n_edges - 1)
+            cell = cin[j]
+            x, y = cell_xy(self.grid, cell)
+            alt = np.column_stack([np.asarray(x, float), np.asarray(y, float)])
+            alt[cell < 0] = np.nan
+            out[miss] = alt
         return out
 
     def build(self, lo: int, hi: int, *, spacing, half_length, step, swath_width,
@@ -490,7 +543,10 @@ class _PairContext:
             if normals and p.length >= float(min_path):
                 s, pt, t, nrm = station_frames(p.xy, spacing, tangent_window,
                                                closed=p.is_cycle)
-                nrm = orient_normals(nrm, pt, self.hi_side_points(p, s, hi))
+                w = float(tangent_window if tangent_window else spacing)
+                if p.is_cycle:
+                    w = min(w, p.n_edges * self.cs / 2.0)
+                nrm = orient_normals(nrm, pt, self.hi_side_points(p, s, hi, pt, w))
                 res = sample_normals(self.sampler, pt, t, nrm, 2.0 * half_length, step,
                                      swath_width)
                 res.update({"station_s": s, "station_xy": pt, "tangent": t, "normal": nrm,

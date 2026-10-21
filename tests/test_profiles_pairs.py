@@ -68,6 +68,59 @@ def test_normals_are_turned_towards_basin_hi():
     assert np.allclose(out, [[0, -1], [0, 1]])
 
 
+def test_the_side_of_a_normal_comes_from_its_window_not_from_one_face():
+    """A divide running east with basin hi to the south and a single step
+    north half way. A station on that step, below its middle, lies further
+    from the flanking hi cell along the normal (5 m) than beside it (15 m
+    east), so that cell alone turns the normal north, into lo; the faces
+    over the window turn it south."""
+    pts = [(30.0 * k, 0.0) for k in range(11)] + [(300.0 + 30.0 * k, 30.0) for k in range(11)]
+    xy = np.asarray(pts)
+    s, p, t, n = P.station_frames(xy, 620.0)
+    assert np.allclose(s, [310.0]) and np.allclose(p, [[300.0, 10.0]])
+    inward = np.array([[0.0, -30.0]] * 10 + [[30.0, 0.0]] + [[0.0, -30.0]] * 10)
+    edge_s = (np.arange(21) + 0.5) * 30.0
+    good = P.orient_normals(n, p, P.side_points(p, s, edge_s, inward, 620.0))
+    assert good[0, 1] < -0.99                                  # south, into hi
+    one_face = P.orient_normals(n, p, np.array([[315.0, 15.0]]))
+    assert one_face[0, 1] > 0.99                               # one face alone: north, into lo
+
+
+def test_normals_start_into_basin_hi_along_real_divides():
+    """Every section of the 15 longest pairs of a real partition leaves the
+    divide into basin hi on its positive side and into lo on its negative
+    side, a few cells out, wherever both sides are clear."""
+    tt = pytest.importorskip("topotoolbox")
+    from pydivide.labels import reach_basin_labels
+    from pydivide.pipeline import divide_network
+    dem = tt.load_dem("bigtujunga")
+    fd = tt.FlowObject(dem)
+    st = tt.StreamObject(fd, threshold=1e6, units="m2")
+    D = divide_network(fd=fd, st=st, verbose=False)
+    L = reach_basin_labels(dem, 1e7, fd=fd)
+    g = D.grid
+
+    def label(x, y):
+        r, c = int((g.y0 - y) // g.cellsize), int((x - g.x0) // g.cellsize)
+        return int(L[r, c]) if 0 <= r < g.nr and 0 <= c < g.nc else -1
+
+    pairs = P.basin_pairs(D, dem, labels=L, threshold=1e7)
+    right = wrong = 0
+    for lo, hi in zip(pairs.basin_lo[:15], pairs.basin_hi[:15]):
+        pp = P.basin_pair_profiles(D, dem, pair=(int(lo), int(hi)), labels=L, threshold=1e7,
+                                   spacing=1000.0, half_length=300.0)
+        for path in pp.paths:
+            r = path.normals
+            if r is None:
+                continue
+            for (x, y), (u, v) in zip(r["station_xy"], r["normal"]):
+                pos = {label(x + d * u, y + d * v) for d in (45.0, 90.0)}
+                neg = {label(x - d * u, y - d * v) for d in (45.0, 90.0)}
+                right += pos == {hi} and neg == {lo}
+                wrong += pos == {lo} and neg == {hi}
+    assert right > 100 and wrong == 0
+
+
 def test_bilinear_reads_a_plane_exactly_and_refuses_off_grid_and_nodata():
     z = np.fromfunction(lambda r, c: 100 + 2 * c - 3 * r, (20, 30)).astype(np.float32)
     x0, y0, cs = 1000.0, 5000.0, 10.0

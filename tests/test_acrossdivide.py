@@ -314,3 +314,99 @@ def test_metrics_tables_coherence_is_within_bounds(name):
     fin = c[np.isfinite(c)]
     assert fin.size > 0
     assert fin.min() >= 0.0 and fin.max() <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# the common base level: outlet elevations and the chi_common_base flag
+
+@pytest.fixture(scope="module")
+def bigtujunga_400():
+    dem = tt.load_dem("bigtujunga")
+    fd = tt.FlowObject(dem)
+    t = across_divide_metrics(dem, flow=fd, threshold=1e6, baselevel=400.0, seglength=300.0,
+                              metrics=("elev", "chi"))
+    return dem, fd, t
+
+
+def test_outlet_elevation_is_the_dem_at_the_cell_where_the_system_leaves(bigtujunga_400):
+    """Independent oracle: pytopotoolbox's flow edges. A river system's
+    outlet is its one cell that drains nowhere; the table's outlet
+    elevation of a side must be the DEM there."""
+    dem, fd, t = bigtujunga_400
+    c = t.columns
+    z = np.asarray(dem.z, float).ravel()
+    db = np.asarray(fd.drainagebasins().z).ravel()
+    src = np.asarray(fd.source, np.int64).ravel()
+    is_source = np.zeros(z.size, bool)
+    is_source[src] = True
+    tgt = np.asarray(fd.target, np.int64).ravel()
+    reached = np.zeros(z.size, bool)
+    reached[tgt] = True
+    sinks = np.flatnonzero(reached & ~is_source)                # drained into, drain nowhere
+    z_of_system = {int(db[k]): float(z[k]) for k in sinks}
+    assert len(z_of_system) >= 25
+    from pydivide.flownet import FlowNet
+    from pydivide.labels import basin_labels
+    st = tt.StreamObject(fd, threshold=1e6, units="m2")
+    L, _ = basin_labels(FlowNet.from_pytopotoolbox(fd, st))
+    L = np.asarray(L).ravel()
+    first = np.full(int(L.max()) + 1, -1, np.int64)
+    idx = np.flatnonzero(L > 0)
+    first[L[idx][::-1]] = idx[::-1]
+    for side in "ab":
+        basin = np.asarray(c[f"basin_{side}"], float)
+        zo = np.asarray(c[f"outlet_z_{side}"], float)
+        ok = np.isfinite(basin) & np.isfinite(zo)
+        assert ok.sum() > 1000
+        systems = db[first[basin[ok].astype(np.int64)]]
+        expect = np.array([z_of_system[int(s)] for s in systems])
+        np.testing.assert_allclose(zo[ok], expect, atol=1e-3)
+
+
+def test_common_base_flag_says_whether_both_outlets_lie_at_or_below_the_base_level(bigtujunga_400):
+    _, _, t = bigtujunga_400
+    c, s = t.columns, t.settings
+    za, zb = np.asarray(c["outlet_z_a"], float), np.asarray(c["outlet_z_b"], float)
+    f = np.asarray(c["chi_common_base"], float)
+    known = np.isfinite(za) & np.isfinite(zb)
+    assert np.isnan(f[~known]).all()
+    assert np.array_equal(f[known], ((za[known] <= 400.0) & (zb[known] <= 400.0)).astype(float))
+    # on this DEM most systems leave above 400 m (outlets between 315 and 1,458 m)
+    with_chi = known & np.isfinite(np.asarray(c["chi_sgn"], float))
+    n_no = int((with_chi & (f == 0)).sum())
+    assert n_no > 0 and (with_chi & (f == 1)).sum() > 0
+    assert s["n_chi_pieces_without_common_base"] == n_no
+    assert s["n_chi_pieces_both_outlets_known"] == int(with_chi.sum())
+    assert 2 <= s["n_systems_above_baselevel"] <= 30
+    assert "chi_common_base" in s["common_base_warning"]
+    assert "chi_common_base = 0" in t.describe()
+
+
+def test_common_base_flag_is_one_everywhere_when_every_system_reaches_the_base_level():
+    dem = tt.load_dem("bigtujunga")
+    t = across_divide_metrics(dem, threshold=1e6, baselevel=1500.0, seglength=300.0,
+                              metrics=("chi",))
+    f = np.asarray(t.columns["chi_common_base"], float)
+    known = np.isfinite(f)
+    assert known.sum() > 100 and (f[known] == 1).all()
+    assert t.settings["n_chi_pieces_without_common_base"] == 0
+    assert t.settings["n_systems_above_baselevel"] == 0
+    assert "common_base_warning" not in t.settings
+    assert "chi_common_base = 1 throughout" in t.describe()
+
+
+def test_outlet_elevations_exist_without_chi_and_the_flag_does_not():
+    dem = tt.load_dem("bigtujunga")
+    t = across_divide_metrics(dem, threshold=1e6, seglength=600.0, metrics=("elev",))
+    assert "outlet_z_a" in t.columns and "outlet_z_b" in t.columns
+    assert "chi_common_base" not in t.columns
+
+
+def test_multiscale_carries_the_flag_per_scale(multiscale_table):
+    t = multiscale_table
+    tags = [k[len("chi_common_base"):] for k in t.columns if k.startswith("chi_common_base")]
+    assert len(tags) >= 2
+    for tag in tags:
+        rec = t.settings["per_scale"][tag]
+        assert "n_chi_pieces_without_common_base" in rec
+    assert "chi_common_base" in t.describe()
