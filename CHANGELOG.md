@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.1
+
+- Outlet-corner blanking uses the outlets that DIVIDEobj uses, those of
+  TopoToolbox's `streampoi(S, 'outlets')`: stream nodes with no outgoing
+  and at least one incoming stream edge (`FlowNet.blanking_outlets`). A
+  one-cell stream network, a stream node with no edge at all, was also
+  blanked as an outlet, which removed the divide edges that touch the
+  corners of its cell. Such a node occurs only where a cell drains
+  straight out of the DEM, so only boundary edges were affected, three
+  for each one-cell network on the edge of the DEM or beside nodata. On a
+  20,000 × 20,000-cell window of the south-eastern Brazil FathomDEM
+  mosaic, 36 one-cell networks lie on the DEM edge, and the network has
+  108 more boundary edges, 36 fewer segments and 72 fewer endpoints than
+  with 0.2.0. With the reference routing injected, the nine
+  validation DEMs have no one-cell network and their validation is
+  unchanged. With the routing of pytopotoolbox, the seven external
+  validation landscapes have 1 to 13 one-cell networks each and gain 3
+  to 41 boundary edges. `FlowNet.outlets` still includes the
+  one-cell networks, so their reach basins keep an outlet and an outlet
+  elevation in the across-divide tables. The checkpoint identity
+  changes, so existing checkpoints are rebuilt rather than reused.
+  `tests/test_outlet_rule.py` builds a one-cell network on a synthetic
+  surface and checks the edges around it.
+
 ## 0.2.0
 
 - `across_divide_metrics` records the elevation at which each side's

@@ -18,7 +18,7 @@ abstract: >-
   crossings in place of an order-dependent merge cascade. It is
   the first module of ATLAS Topo.
 license: GPL-3.0-or-later
-version: 0.2.0
+version: 0.2.1
 keywords:
   - geomorphology
   - drainage divide

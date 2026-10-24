@@ -42,6 +42,18 @@ class FlowNet:
         assert_int64(self.fd_src, self.fd_dst, self.st_nodes,
                      self.st_src, self.st_dst, self.outlets)
 
+    def blanking_outlets(self) -> np.ndarray:
+        """The outlets whose pixel corners are blanked from the basin
+        outlines, as in DIVIDEobj: the outlets of TopoToolbox's
+        ``streampoi(S, 'outlets')``, stream nodes with no outgoing and at
+        least one incoming stream edge. ``outlets`` also holds every
+        one-cell stream network (a stream node with no edge at all, which
+        can only occur where a cell drains straight out of the DEM), so
+        that its reach basin has an outlet in the across-divide tables;
+        DIVIDEobj does not treat such a node as an outlet and keeps the
+        divide edges around it."""
+        return self.outlets[np.isin(self.outlets, self.st_dst)]
+
     # ------------------------------------------------------------------
 
     @classmethod
@@ -136,7 +148,8 @@ class FlowNet:
         st_dst = st_nodes[t]
 
         # outlets: stream nodes with no outgoing stream edge. A stream node
-        # with no edge at all (a one-cell network) is its own outlet too.
+        # with no edge at all (a one-cell network) is its own outlet too;
+        # blanking_outlets() gives the subset DIVIDEobj blanks.
         has_out = np.zeros(n_nodes, dtype=bool)
         has_out[s] = True
         outlets = st_nodes[~has_out]

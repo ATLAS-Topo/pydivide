@@ -568,7 +568,8 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
     # the checkpoint identity binds to the inputs actually consumed: the
     # grid (shape, cell size, origin, CRS) and the flow and stream edge
     # arrays, so two DEMs of the same shape and threshold cannot share a
-    # checkpoint (see StageStore)
+    # checkpoint (see StageStore); code_version rises whenever a stage
+    # computes something different, so such checkpoints are rebuilt
     params = {"minarea": minarea, "units": units,
               "shape": [net.grid.nr, net.grid.nc],
               "cellsize": float(net.grid.cellsize),
@@ -576,7 +577,7 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
               "crs": None if net.crs is None else str(net.crs),
               "flow_edges": array_fingerprint(net.fd_src, net.fd_dst),
               "stream_edges": array_fingerprint(net.st_src, net.st_dst, net.st_nodes),
-              "code_version": 3}
+              "code_version": 4}
 
     def staged(name, fn):
         if store is None:
@@ -604,9 +605,12 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
     # reference (at full-domain size they are two int64 arrays over
     # about 5.1e9 flow edges, ~82 GB, and the FlowObject holds the same
     # arrays)
+    # the outlets DIVIDEobj blanks (streampoi's): a one-cell stream
+    # network keeps the divide edges around it
+    blank_out = net.blanking_outlets()
     order_st = np.argsort(net.st_nodes, kind="stable")
     sorted_st = net.st_nodes[order_st]
-    out_lab = nal[order_st][np.searchsorted(sorted_st, net.outlets)]
+    out_lab = nal[order_st][np.searchsorted(sorted_st, blank_out)]
     net.fd_src = None
     net.fd_dst = None
     if release_inputs:
@@ -622,7 +626,7 @@ def divide_network(dem=None, *, fd=None, st=None, minarea: float = 1e6,
         "nodes": de.nodes, "lab_a": de.lab_a, "lab_b": de.lab_b,
         "is_boundary": de.is_boundary})(
         divide_edges(net.grid, L, net.st_src, net.st_dst,
-                     net.outlets, out_lab)))
+                     blank_out, out_lab)))
 
     if store is not None and store.has("network", params):
         log("network: loading from checkpoint")
