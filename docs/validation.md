@@ -107,7 +107,7 @@ above compare against MATLAB and need the exports.
 
 The reference exports for the Big Tujunga catchment and the Brazil
 4000 × 4000 window are in the paper's Zenodo data deposit,
-doi:10.5281/zenodo.14748886 (https://doi.org/10.5281/zenodo.14748886). Unzip
+doi:10.5281/zenodo.14748885 (https://doi.org/10.5281/zenodo.14748885). Unzip
 `reference_exports_bigtujunga.zip` and `reference_exports_brazil4000.zip`
 so that `reference_data/bigtujunga/manifest.json` and
 `reference_data/brazil4000/manifest.json` exist under the repository

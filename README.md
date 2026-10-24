@@ -142,7 +142,7 @@ The paper describing the reimplementation, its validation and its
 measurements is in preparation for *Earth Surface Dynamics*. The MATLAB
 reference exports, benchmark scripts, timings and experiment outputs
 behind it are archived in a separate Zenodo data deposit,
-[doi:10.5281/zenodo.14748886](https://doi.org/10.5281/zenodo.14748886).
+[doi:10.5281/zenodo.14748885](https://doi.org/10.5281/zenodo.14748885).
 The tests in this repository that need the reference exports skip
 without them; `docs/validation.md` says how to run them with the deposit.
 

@@ -19,7 +19,7 @@ function report = check_divide_stages(dem_path, thr_cells, toolbox_root, referen
 %
 %   Measured on the 4000 x 4000 Brazil window (brazil_crop_4000.tif and
 %   reference_exports_brazil4000.zip of the paper's data deposit,
-%   https://doi.org/10.5281/zenodo.14748886), thr_cells = 1112, routing
+%   https://doi.org/10.5281/zenodo.14748885), thr_cells = 1112, routing
 %   injected:
 %
 %     TopoToolbox 3 1bc93e7 (2025-12-10), unpatched
