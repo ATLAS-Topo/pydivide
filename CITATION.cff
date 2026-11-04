@@ -19,6 +19,8 @@ abstract: >-
   the first module of ATLAS Topo.
 license: GPL-3.0-or-later
 version: 0.2.1
+doi: 10.5281/zenodo.23617104
+date-released: 2026-10-24
 keywords:
   - geomorphology
   - drainage divide
